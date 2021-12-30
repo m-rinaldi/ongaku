@@ -67,6 +67,8 @@ impl Track {
             }
         }
 
+        events.push(Event::EndOfTrack);
+
         Track { events }
     }
 }
@@ -137,6 +139,7 @@ impl Bin for Track {
             vec.extend((data_len as u32).to_be_bytes());
         }
 
+        vec.extend(track_data);
         vec
     }
 }
