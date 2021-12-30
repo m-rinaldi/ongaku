@@ -1,6 +1,36 @@
-struct Midi {
+use crate::{Music, MusicChunk};
+
+pub struct Midi {
     header: Header,
     track: Track,
+}
+
+impl Midi {
+    pub fn new(music: Music) -> Self {
+        let header = Header::new();
+        let track = Track::new(music.chunks);
+
+        Midi { header, track }
+    }
+
+    pub fn to_file(&self, filepath: &std::path::Path) {
+        let mut file = std::fs::File::create(filepath).unwrap();
+        
+        let mut bin = std::io::Cursor::new(self.bin());
+        std::io::copy(&mut bin, &mut file).unwrap();
+    }
+}
+
+impl Bin for Midi {
+    type Output = Vec<u8>;
+
+    fn bin(&self) -> Vec<u8> {
+        let mut vec = Vec::new();
+        vec.extend(self.header.bin());
+        vec.extend(self.track.bin());
+        
+        vec
+    }
 }
 
 struct Header {
@@ -8,8 +38,37 @@ struct Header {
     num_tracks: u16,
     tickdiv: u16,
 }
+
+impl Header {
+    pub fn new() -> Self {
+        Header { format: 0, num_tracks: 1, tickdiv: 1 }
+    }
+}
 struct Track {
     events: Vec<Event>,
+}
+
+impl Track {
+    pub fn new<I: IntoIterator<Item=MusicChunk>>(iterable: I) -> Self {
+        let mut events = Vec::new();
+        let mut dt = 0u8;
+        for music_chunk in iterable {
+            use MusicChunk::*;
+            use Event::*;
+            match music_chunk {
+                Tone(dur) => {
+                    events.push(NoteOn(dt));
+                    events.push(NoteOff(dur));
+                    dt = 0;
+                }
+                Rest(dur) => {
+                    dt += dur;
+                }
+            }
+        }
+
+        Track { events }
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -84,17 +143,54 @@ impl Bin for Track {
 
 use local_vec::LocalVec;
 
+enum Switch {
+    On,
+    Off,
+}
+
+fn encode_note(dur: u8, switch: Switch) -> LocalVec<u8, 4> {
+    let mut vec = LocalVec::new();
+
+    // delta time
+    vec.extend(to_vli(dur));
+
+    // whether note on / note off
+    let switch_code: u8 = match switch {
+        Switch::Off => 0x80,
+        Switch::On  => 0x90
+    };
+    vec.push(switch_code);
+
+    // TODO extend
+    // tone itself
+    vec.push(0x3c);
+
+    // press velocity
+    vec.push(0x64);
+
+    vec
+}
+
+fn to_vli(val: u8) -> LocalVec<u8, 4> {
+    // TODO extend this for values larger than 127
+    let mut vec = LocalVec::new();
+    vec.push(val & 0x7f);
+    vec
+}
+
 impl Bin for Event {
     type Output = LocalVec<u8, 4>;
+
     fn bin(&self) -> LocalVec<u8, 4> {
-        let mut vec = LocalVec<_,4>::new();
+        let mut vec = LocalVec::new();
 
         use Event::*;
         match *self {
             NoteOn(dt) => {
+                vec.extend(encode_note(dt, Switch::On));
             }
             NoteOff(dt) => {
-
+                vec.extend(encode_note(dt, Switch::Off))
             }
             EndOfTrack => {
                 vec.extend(0x00ff2f00_u32.to_be_bytes())
