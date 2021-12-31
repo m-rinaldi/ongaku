@@ -3,7 +3,9 @@ name = "ongaku"
 version = "0.0.1"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors = ["Jorge Rinaldi <jrg.rinaldi@gmail.com>"]
+license = "AGPLv3"
+repository = "https://github.com/m-rinaldi/ongaku"
 
 [dependencies]
 local_vec = "0.4.0"
