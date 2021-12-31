@@ -11,6 +11,7 @@ impl Music {
          }
     }
 }
+#[derive(Copy, Clone)]
 pub enum MusicChunk {
     Tone(u8),
     Rest(u8),
