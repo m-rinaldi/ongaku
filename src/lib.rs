@@ -1,3 +1,22 @@
+pub mod midi;
+
+pub struct Music {
+    chunks: Vec<MusicChunk>,
+}
+
+impl Music {
+    pub fn new<I: IntoIterator<Item=MusicChunk>>(iter: I) -> Self {
+        Music {
+            chunks: iter.into_iter().collect(),
+         }
+    }
+}
+#[derive(Copy, Clone)]
+pub enum MusicChunk {
+    Tone(u8),
+    Rest(u8),
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
